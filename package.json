@@ -1,0 +1,24 @@
+{
+  "name": "klokbot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "cfonts": "^3.3.0",
+    "chalk": "^5.4.1",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "fs": "^0.0.1-security",
+    "https-proxy-agent": "^7.0.6",
+    "node-fetch": "^3.3.2",
+    "prompt-sync": "^4.2.0",
+    "uuid": "^11.1.0"
+  }
+}
