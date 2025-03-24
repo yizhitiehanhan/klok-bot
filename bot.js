@@ -11,7 +11,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const DEBUG = false;
 const BASE_URL = "https://api1-pp.klokapp.ai";
-const messagesFile = "CAH-pesan.txt";
+const messagesFile = "question.txt";
 const privateKeysFile = "privatekeys.txt";
 const proxyFile = "proxies.txt";
 const promptSync = prompt();
