@@ -15,7 +15,7 @@ const messagesFile = "CAH-pesan.txt";
 const privateKeysFile = "privatekeys.txt";
 const proxyFile = "proxies.txt";
 const promptSync = prompt();
-const REFERRAL_CODE = "WYW94WLU";
+const REFERRAL_CODE = "UGDC69BW";
 
 let proxies = [];
 if (fs.existsSync(proxyFile)) {
