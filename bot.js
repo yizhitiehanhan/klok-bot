@@ -3,19 +3,20 @@ import fs from "fs";
 import crypto from "crypto";
 import chalk from "chalk";
 import fetch from "node-fetch";
+import ora from "ora";
 import prompt from "prompt-sync";
 import cfonts from "cfonts";
 import { v4 as uuidv4 } from "uuid";
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
+const DEBUG = false;
 const BASE_URL = "https://api1-pp.klokapp.ai";
-const messagesFile = "question.txt";
+const messagesFile = "CAH-pesan.txt";
 const privateKeysFile = "privatekeys.txt";
 const proxyFile = "proxies.txt";
 const promptSync = prompt();
-const REFERRAL_CODE = "ZYEG2HRF";
+const REFERRAL_CODE = "WYW94WLU";
 
-// 添加代理管理
 let proxies = [];
 if (fs.existsSync(proxyFile)) {
   proxies = fs.readFileSync(proxyFile, "utf-8")
@@ -24,10 +25,9 @@ if (fs.existsSync(proxyFile)) {
               .filter(line => line !== "");
 }
 
-// 修改代理获取函数
+
 function getProxy(accountIndex) {
   if (proxies.length === 0) return null;
-  // 使用私钥索引获取对应的代理
   return proxies[accountIndex - 1] || proxies[proxies.length - 1];
 }
 
@@ -43,6 +43,18 @@ function prettyPrint(obj, indent = 0) {
   }
 }
 
+function centerText(text, color = "cyanBright") {
+  const terminalWidth = process.stdout.columns || 80;
+  const textLength = text.length;
+  const padding = Math.max(0, Math.floor((terminalWidth - textLength) / 2));
+  return " ".repeat(padding) + chalk[color](text);
+}
+
+function accountDelay(minMs, maxMs) {
+  const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  console.log(chalk.bold.grey(`\n⏳ Waiting ${delay / 1000} seconds before switching to the next account...\n`));
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
 
 function taskDelay(minMs, maxMs) {
   const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
@@ -71,9 +83,14 @@ async function typeOutText(text, delay = 1) {
   }
 }
 
+async function typeOutResponse(text) {
+  printSection("Chat API Response", "");
+  await typeOutText(text, 1);
+  console.log("\n\x1b[35m==============================================================================================================\x1b[0m\n");
+}
 
 // 修改 fetchWithoutRetry 函数以支持代理
-async function fetchWithoutRetry(url, options) {
+async function fetchWithoutRetry(url, options, accountIndex) {
   try {
     let controller, timeout;
     controller = new AbortController();
@@ -81,7 +98,7 @@ async function fetchWithoutRetry(url, options) {
     options.signal = controller.signal;
 
     // 添加代理支持
-    const proxy = getProxy();
+    const proxy = getProxy(accountIndex);
     if (proxy) {
       options.agent = new HttpsProxyAgent(proxy);
     }
@@ -101,6 +118,17 @@ async function fetchWithoutRetry(url, options) {
   }
 }
 
+async function checkChatConnectivity(headers) {
+  const spinner = ora("⏳ Checking Chat API connectivity...").start();
+  try {
+    await fetch(`${BASE_URL}/v1/chat`, { method: "HEAD", headers });
+    spinner.succeed(chalk.greenBright(" Chat API connectivity is good 🚀"));
+    return true;
+  } catch (error) {
+    spinner.fail(chalk.redBright(" Chat API connectivity is having issues."));
+    return false;
+  }
+}
 
 if (!fs.existsSync(messagesFile)) {
   console.error(`❌ Error: File "${messagesFile}" not found!`);
@@ -126,7 +154,21 @@ if (PRIVATE_KEYS.length === 0) {
   process.exit(1);
 }
 
-
+cfonts.say("CryptoAirdropHindi", {
+  font: "block",
+  align: "center",
+  colors: ["cyan", "magenta"],
+  background: "black",
+  letterSpacing: 1,
+  lineHeight: 1,
+  space: true,
+  maxLength: "0",
+});
+console.log("=== Telegram Channel : CryptoAirdropHindi (@CryptoAirdropHindi) ===", "\x1b[36m");
+console.log("===Follow us on social media for updates and more===:");
+console.log("===📱 Telegram: https://t.me/Crypto_airdropHM===");
+console.log("===🎥 YouTube: https://www.youtube.com/@CryptoAirdropHindi6===");
+console.log("===💻 GitHub Repo: https://github.com/CryptoAirdropHindi/===");
 const threadCount = parseInt(promptSync("🧵 How many threads do you want to run? "), 4);
 
 // 修改线程管理类
@@ -192,7 +234,8 @@ class ThreadManager {
 // 创建线程管理器实例
 const threadManager = new ThreadManager(threadCount);
 
-async function signAndVerify(privateKey) {
+// 修改 signAndVerify 函数
+async function signAndVerify(privateKey, accountIndex) {
   try {
     const wallet = new ethers.Wallet(privateKey);
     const nonce = crypto.randomBytes(32).toString("hex");
@@ -200,9 +243,17 @@ async function signAndVerify(privateKey) {
     const message = `klokapp.ai wants you to sign in with your Ethereum account:\n${wallet.address}\n\n\nURI: https://klokapp.ai/\nVersion: 1\nChain ID: 1\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
     const signature = await wallet.signMessage(message);
 
+    if (DEBUG) {
+      console.log(chalk.green("Generated Signature:"), signature);
+      console.log(chalk.green("New Nonce:"), nonce);
+      console.log(chalk.green("Issued Date:"), issuedAt);
+    }
 
     const payload = { signedMessage: signature, message, referral_code: REFERRAL_CODE };
 
+    if (DEBUG) {
+      console.log(chalk.blue("Sending verification request..."));
+    }
 
     const headers = {
       "Content-Type": "application/json",
@@ -217,13 +268,20 @@ async function signAndVerify(privateKey) {
         method: "POST",
         headers,
         body: JSON.stringify(payload)
-      });
+      }, accountIndex);
 
       if (!result) {
         throw new Error("Verification request failed");
       }
+
+      if (DEBUG) {
+        console.log(chalk.blue("Full Verification Response:"), result);
+      }
       
       if (result.session_token) {
+        if (DEBUG) {
+          console.log(chalk.green("Session Token Obtained:"), result.session_token);
+        }
         return { sessionToken: result.session_token, wallet };
       }
       
@@ -238,7 +296,8 @@ async function signAndVerify(privateKey) {
   }
 }
 
-async function makeRequests(sessionToken, runNumber) {
+// 修改 makeRequests 函数
+async function makeRequests(sessionToken, runNumber, accountIndex) {
   const headers = {
     accept: "*/*",
     "content-type": "application/json",
@@ -252,7 +311,7 @@ async function makeRequests(sessionToken, runNumber) {
   const rateCheck = await fetchWithoutRetry(`${BASE_URL}/v1/rate-limit`, {
     method: "GET",
     headers
-  });
+  }, accountIndex);
 
   if (!rateCheck) {
     console.log(chalk.red("Network error detected!"));
@@ -265,7 +324,7 @@ async function makeRequests(sessionToken, runNumber) {
     const stats = await fetchWithoutRetry(`${BASE_URL}/v1/chat/stats`, {
       method: "GET",
       headers
-    });
+    }, accountIndex);
 
     if (stats) {
       console.log(chalk.cyan(`\n📊 Account Statistics:`));
@@ -289,7 +348,7 @@ async function makeRequests(sessionToken, runNumber) {
       created_at: new Date().toISOString(),
       language: "english"
     })
-  });
+  }, accountIndex);
 
   if (!chatResponse) {
     console.log(chalk.red("Failed to send message"));
@@ -322,8 +381,8 @@ async function makeRequests(sessionToken, runNumber) {
   return { counted: true, dailyLimitReached: false, failed: false };
 }
 
-// 添加获取每日限制的函数
-async function getDailyLimit(sessionToken) {
+// 修改 getDailyLimit 函数
+async function getDailyLimit(sessionToken, accountIndex) {
   const headers = {
     accept: "*/*",
     "content-type": "application/json",
@@ -336,7 +395,7 @@ async function getDailyLimit(sessionToken) {
   const stats = await fetchWithoutRetry(`${BASE_URL}/v1/chat/stats`, {
     method: "GET",
     headers
-  });
+  }, accountIndex);
 
   if (stats && stats.daily_limit) {
     return stats.daily_limit;
@@ -344,7 +403,7 @@ async function getDailyLimit(sessionToken) {
   return 50; // 默认值
 }
 
-// 修改账户处理函数
+// 修改 processAccount 函数
 async function processAccount(privateKey, accountIndex) {
   await threadManager.acquire();
   
@@ -360,7 +419,7 @@ async function processAccount(privateKey, accountIndex) {
     }
     
     // 验证签名
-    const authResult = await signAndVerify(privateKey);
+    const authResult = await signAndVerify(privateKey, accountIndex);
     if (!authResult) {
       console.log(chalk.red(`❌ Failed to authenticate account ${accountIndex}`));
       threadManager.updateAccountStatus(accountIndex, 'Failed');
@@ -371,7 +430,7 @@ async function processAccount(privateKey, accountIndex) {
     console.log(chalk.green(`✅ Account ${accountIndex} authenticated successfully`));
     
     // 获取该账号的每日限制
-    const accountDailyLimit = await getDailyLimit(sessionToken);
+    const accountDailyLimit = await getDailyLimit(sessionToken, accountIndex);
     console.log(chalk.cyan(`📊 Account ${accountIndex} daily limit: ${accountDailyLimit}`));
     
     threadManager.updateAccountStatus(accountIndex, 'Running');
@@ -396,7 +455,7 @@ async function processAccount(privateKey, accountIndex) {
         ));
       });
       
-      const result = await makeRequests(sessionToken, i + 1);
+      const result = await makeRequests(sessionToken, i + 1, accountIndex);
       if (!result) {
         console.log(chalk.red(`❌ Failed to process request ${i + 1} for account ${accountIndex}`));
         continue;
