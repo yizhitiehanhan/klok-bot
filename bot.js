@@ -18,7 +18,6 @@ const proxyFile = "proxies.txt";
 const promptSync = prompt();
 const REFERRAL_CODE = "Z9YJFCRU";
 
-// 添加代理管理
 let proxies = [];
 if (fs.existsSync(proxyFile)) {
   proxies = fs.readFileSync(proxyFile, "utf-8")
@@ -27,10 +26,8 @@ if (fs.existsSync(proxyFile)) {
               .filter(line => line !== "");
 }
 
-// 修改代理获取函数
 function getProxy(accountIndex) {
   if (proxies.length === 0) return null;
-  // 使用私钥索引获取对应的代理
   return proxies[accountIndex - 1] || proxies[proxies.length - 1];
 }
 
@@ -92,7 +89,6 @@ async function typeOutResponse(text) {
   console.log("\n\x1b[35m==============================================================================================================\x1b[0m\n");
 }
 
-// 修改 fetchWithoutRetry 函数以支持代理
 async function fetchWithoutRetry(url, options, accountIndex) {
   try {
     let controller, timeout;
@@ -167,14 +163,8 @@ cfonts.say("CryptoAirdropHindi", {
   space: true,
   maxLength: "0",
 });
-console.log("=== Telegram Channel : CryptoAirdropHindi (@CryptoAirdropHindi) ===", "\x1b[36m");
-console.log("===Follow us on social media for updates and more===:");
-console.log("===📱 Telegram: https://t.me/Crypto_airdropHM===");
-console.log("===🎥 YouTube: https://www.youtube.com/@CryptoAirdropHindi6===");
-console.log("===💻 GitHub Repo: https://github.com/CryptoAirdropHindi/===");
 const threadCount = parseInt(promptSync("🧵 How many threads do you want to run? "), 4);
 
-// 修改线程管理类
 class ThreadManager {
   constructor(maxThreads) {
     this.activeThreads = 0;
@@ -237,7 +227,6 @@ class ThreadManager {
 // 创建线程管理器实例
 const threadManager = new ThreadManager(threadCount);
 
-// 修改 signAndVerify 函数
 async function signAndVerify(privateKey, accountIndex) {
   try {
     const wallet = new ethers.Wallet(privateKey);
@@ -299,7 +288,6 @@ async function signAndVerify(privateKey, accountIndex) {
   }
 }
 
-// 修改 makeRequests 函数
 async function makeRequests(sessionToken, runNumber, accountIndex) {
   const headers = {
     accept: "*/*",
@@ -376,7 +364,7 @@ async function makeRequests(sessionToken, runNumber, accountIndex) {
     responseText = JSON.stringify(chatResponse, null, 2);
   }
 
-  console.log('\n'); // 添加一个空行来分隔响应
+  console.log('\n'); 
   console.log(chalk.cyan('Chat Response:'));
   console.log(chalk.white(responseText));
   console.log('\n'); // 添加一个空行来分隔下一个操作
@@ -384,7 +372,6 @@ async function makeRequests(sessionToken, runNumber, accountIndex) {
   return { counted: true, dailyLimitReached: false, failed: false };
 }
 
-// 修改 getDailyLimit 函数
 async function getDailyLimit(sessionToken, accountIndex) {
   const headers = {
     accept: "*/*",
@@ -406,12 +393,10 @@ async function getDailyLimit(sessionToken, accountIndex) {
   return 50; // 默认值
 }
 
-// 修改 processAccount 函数
 async function processAccount(privateKey, accountIndex) {
   await threadManager.acquire();
   
   try {
-    // 获取钱包地址
     const wallet = new ethers.Wallet(privateKey);
     const proxy = getProxy(accountIndex);
     
@@ -421,7 +406,6 @@ async function processAccount(privateKey, accountIndex) {
       console.log(chalk.cyan(`Using Proxy: ${proxy}`));
     }
     
-    // 验证签名
     const authResult = await signAndVerify(privateKey, accountIndex);
     if (!authResult) {
       console.log(chalk.red(`❌ Failed to authenticate account ${accountIndex}`));
