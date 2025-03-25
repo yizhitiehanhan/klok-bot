@@ -9,14 +9,16 @@ import cfonts from "cfonts";
 import { v4 as uuidv4 } from "uuid";
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
+// Set to true for Debugging
 const DEBUG = false;
 const BASE_URL = "https://api1-pp.klokapp.ai";
 const messagesFile = "question.txt";
 const privateKeysFile = "privatekeys.txt";
 const proxyFile = "proxies.txt";
 const promptSync = prompt();
-const REFERRAL_CODE = "UGDC69BW";
+const REFERRAL_CODE = "Z9YJFCRU";
 
+// 添加代理管理
 let proxies = [];
 if (fs.existsSync(proxyFile)) {
   proxies = fs.readFileSync(proxyFile, "utf-8")
@@ -25,9 +27,10 @@ if (fs.existsSync(proxyFile)) {
               .filter(line => line !== "");
 }
 
-
+// 修改代理获取函数
 function getProxy(accountIndex) {
   if (proxies.length === 0) return null;
+  // 使用私钥索引获取对应的代理
   return proxies[accountIndex - 1] || proxies[proxies.length - 1];
 }
 
@@ -58,7 +61,7 @@ function accountDelay(minMs, maxMs) {
 
 function taskDelay(minMs, maxMs) {
   const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
-  console.log(chalk.bold.grey(`\n⏳ Waiting ${delay / 1000} seconds before the next chat...\n`));
+  console.log(chalk.bold.grey(`\n⏳ Waiting ${delay / 1000} seconds before the next chat...`));
   return new Promise((resolve) => setTimeout(resolve, delay));
 }
 
@@ -472,7 +475,7 @@ async function processAccount(privateKey, accountIndex) {
         break;
       }
       
-      await taskDelay(2000, 5000);
+      await taskDelay(10000, 20000);
     }
 
     threadManager.updateAccountStatus(accountIndex, 'Completed', accountDailyLimit);
@@ -496,13 +499,38 @@ async function main() {
     console.log(chalk.yellow("No proxies loaded, running without proxy"));
   }
   
-  // 为每个私钥创建一个线程
-  const promises = PRIVATE_KEYS.map((privateKey, index) => 
-    processAccount(privateKey, index + 1)
-  );
+  // 按顺序启动线程
+  const activeThreads = new Set();
+  const results = [];
+  
+  for (let i = 0; i < PRIVATE_KEYS.length; i++) {
+    // 等待，直到活动线程数小于最大线程数
+    while (activeThreads.size >= threadCount) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    const privateKey = PRIVATE_KEYS[i];
+    const accountIndex = i + 1;
+    
+    // 启动新线程
+    const threadPromise = processAccount(privateKey, accountIndex);
+    activeThreads.add(threadPromise);
+    
+    // 当线程完成时从活动线程集合中移除
+    threadPromise.finally(() => {
+      activeThreads.delete(threadPromise);
+    });
+    
+    results.push(threadPromise);
+    
+    // 每个线程启动后等待10-20秒
+    const delay = Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000;
+    console.log(chalk.cyan(`\n⏳ Waiting ${delay/1000} seconds before starting next thread...`));
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
   
   // 等待所有线程完成
-  await Promise.all(promises);
+  await Promise.all(results);
   
   // 显示最终状态
   const finalProgress = threadManager.getProgress();
