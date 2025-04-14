@@ -17,6 +17,7 @@ const privateKeysFile = "privatekeys.txt";
 const proxyFile = "proxies.txt";
 const promptSync = prompt();
 const REFERRAL_CODE = "Z9YJFCRU";
+const API_KEY="你的key"
 
 let proxies = [];
 if (fs.existsSync(proxyFile)) {
@@ -227,6 +228,66 @@ class ThreadManager {
 // 创建线程管理器实例
 const threadManager = new ThreadManager(threadCount);
 
+async function capsolver() {
+  const payload = {
+    clientKey: API_KEY,
+    task: {
+      type: "ReCaptchaV3EnterpriseTaskProxyLess",
+      websiteKey: "6LcZrRMrAAAAAKllb4TLb1CWH2LR7iNOKmT7rt3L",
+      websiteURL: "https://klokapp.ai/",
+      isEnterprise: true,
+    },
+  };
+ 
+  try {
+    const res = await fetch("https://api.capsolver.com/createTask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const resp = await res.json();
+    const task_id = resp.taskId;
+    if (!task_id) {
+      console.log("Failed to create task:", res.data);
+      return;
+    }
+ 
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
+ 
+      const getResultPayload = {
+        clientKey: API_KEY,
+        taskId: task_id,
+      };
+
+      const resultResponse = await fetch("https://api.capsolver.com/getTaskResult", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(getResultPayload),
+      });
+
+      const resp  = await resultResponse.json();
+      const status = resp.status;
+ 
+      if (status === "ready") {
+        console.log(chalk.green(`✅ capsolver successfully!`));
+        return resp.solution.gRecaptchaResponse;
+      }
+      if (status === "failed" || resp.data.errorId) {
+        console.log("Solve failed! response:", resp.data);
+        return;
+      }
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+
 async function signAndVerify(privateKey, accountIndex) {
   try {
     const wallet = new ethers.Wallet(privateKey);
@@ -240,8 +301,13 @@ async function signAndVerify(privateKey, accountIndex) {
       console.log(chalk.green("New Nonce:"), nonce);
       console.log(chalk.green("Issued Date:"), issuedAt);
     }
-
-    const payload = { signedMessage: signature, message, referral_code: REFERRAL_CODE };
+    const recaptchaToken = await capsolver();
+    const payload = { 
+      signedMessage: signature, 
+      message, 
+      referral_code: REFERRAL_CODE,
+      recaptcha_token: recaptchaToken  
+    };
 
     if (DEBUG) {
       console.log(chalk.blue("Sending verification request..."));
